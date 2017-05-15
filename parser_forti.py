@@ -16,7 +16,7 @@
 #
 ################################################################################"""
 
-__version__ = (1,2,2)
+__version__ = "1.2.2"
 __all__ = ['parse','Parser','Parsed_to_xls','main','prepare','build_xls']
 
 ################################################################################
@@ -32,7 +32,8 @@ parser.add_argument('--json', dest='JSON', action='store_true',
     default=False, help='write result in a JSON file (default: False)')
 parser.add_argument('--xlsx', dest='XLSX', action='store_true',
     default=False, help='write result in a XLSX file (default: False)')
-args = parser.parse_args(sys.argv[1:])
+if __name__ == '__main__':
+    args = parser.parse_args(sys.argv[1:])
 
 import shlex
 import json
