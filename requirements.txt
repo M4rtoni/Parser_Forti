@@ -1,1 +1,1 @@
-openpyxl
+openpyxl >= 2.4.7
