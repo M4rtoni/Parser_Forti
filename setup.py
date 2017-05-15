@@ -20,5 +20,5 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Topic :: Utilities",
     ],
-    license='BSD 3-clause "New" or "Revised" License'
+    licence='BSD 3-clause "New" or "Revised" License'
     )
