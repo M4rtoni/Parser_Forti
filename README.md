@@ -32,3 +32,7 @@ Take 5 optionnals arguments :
     - This file have main sheet (`Acceuil`), that has a empty and non empty sheet list,
     - Every non empty sheet show informations extract from a main part of a configuration file,
   - `help` (-h/--help) output usage information
+
+# Licence
+
+BSD 3-clause "New" or "Revised" License
