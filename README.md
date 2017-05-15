@@ -1,4 +1,4 @@
-# Forti_Parser
+# Parser_Forti
 
 This programme is tool to convert a Fortinet configuration file in JSON and/or XSLS file.
 
@@ -7,7 +7,7 @@ This programme is tool to convert a Fortinet configuration file in JSON and/or X
 Clone the project:
 ```bash
 git clone https://github.com/M4rtoni/Parser_Forti.git
-cd Forti_parser
+cd Parser_Forti
 ```
 Install the project:
 ```bash
