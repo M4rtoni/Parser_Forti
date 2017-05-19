@@ -17,7 +17,7 @@ sudo python setup.py install
 ## Test
 ```bash
 $ python parser_forti.py --files test.conf --json --xlsx
-        Reeading : done
+        Reading : done
         Header : done
         Parsing : done
 /usr/lib/python2.7/site-packages/openpyxl/workbook/child.py:98: UserWarning: Title is more than 31 characters. Some applications may not be able to read the file
