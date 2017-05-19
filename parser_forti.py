@@ -644,7 +644,7 @@ def main():
         # Lecture du fichier
         #
         
-        print '\tReeading :',
+        print '\tReading :',
         f = open('./'+file)
         config = f.read()
         f.close()
