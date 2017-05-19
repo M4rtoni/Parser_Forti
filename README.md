@@ -14,6 +14,20 @@ Install the project:
 pip install -r requirements.txt
 sudo python setup.py install
 ```
+## Test
+```bash
+$ python parser_forti.py --files test.conf --json --xlsx
+        Reeading : done
+        Header : done
+        Parsing : done
+/usr/lib/python2.7/site-packages/openpyxl/workbook/child.py:98: UserWarning: Title is more than 31 characters. Some applications may not be able to read the file
+  warnings.warn("Title is more than 31 characters. Some applications may not be able to read the file")
+        Format XLS : done
+        Format JSON : done
+```
+Openpyxl can't create a sheet with more than 31 characters, so `firewall profile-protocol-options` (33) don't pass !
+
+XLSX file return an error when you open it, `Microsoft Excel` can fix it but you have to change links with the new names. `firewall profile-protocol-options` become `firewall profile-protocol-optio`, save and that's it !
 
 ## Run
 
@@ -32,6 +46,11 @@ Take 5 optionnals arguments :
     - This file have main sheet (`Acceuil`), that has a empty and non empty sheet list,
     - Every non empty sheet show informations extract from a main part of a configuration file,
   - `help` (-h/--help) output usage information
+
+## Incoming
+
+  - Bug fix for sheet names longer than 31 characters
+  - creating optionnal argument for selecting keys (you can change it manualy in `forti_paarser.py line 677`)
 
 # Licence
 
