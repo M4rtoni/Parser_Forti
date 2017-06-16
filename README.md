@@ -36,7 +36,7 @@ Let's go !
 python parser_forti.py --xlsx 
 ```
 
-Take 5 optionnals arguments :
+Take 7 optionnals arguments :
   - `files` (--files) change wildcard to find configuration files (default : `*.conf`)
   - `directory` (--dir) change path to find files (default current folder)
   - `JSON` (--json) save result in an JSON file (`file_name.json`)
@@ -46,6 +46,8 @@ Take 5 optionnals arguments :
     - This file have main sheet (`Acceuil`), that has a empty and non empty sheet list,
     - Every non empty sheet show informations extract from a main part of a configuration file,
   - `help` (-h/--help) output usage information
+  - `webfilter` (-webfilter) add webfilter category and group category in webfilter profile, ignore local profiles (not active by default)
+  - `webfilter profiles` (--profile) change library use for webfilter profiles (default: webfilter_profiles.json in lib directory)
 
 ## Incoming
 
