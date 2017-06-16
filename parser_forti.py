@@ -7,8 +7,8 @@
 # Created By        : Florian MAUFRAIS
 # Contact           : florian.maufrais@nxosecurity.com
 # Creation Date     : april  13th, 2015
-# Version           : 1.2.2
-# Last Change       : April 25th, 2017 at 11:28
+# Version           : 1.2.3
+# Last Change       : June 16th, 2017 at 9:32
 # Last Changed By   : Florian MAUFRAIS
 # Purpose           : This programm could parse backup files of a
 #                     Fortigate appliance to a JSON/dict and XLSX structure
@@ -16,27 +16,47 @@
 #
 ################################################################################"""
 
-__version__ = "1.2.2"
-__all__ = ['parse','Parser','Parsed_to_xls','main','prepare','build_xls']
+__version__ = (1,2,3)
+__all__ = ['parse','Parser','Parsed_to_xls','prepare','build_xls']
 
 ################################################################################
 
-import argparse
-import sys
+import argparse, sys, os
+
+LOCAL_DIR = os.path.dirname(os.path.abspath(__file__))
+#LOCAL_DIR = os.getcwd()
+
+class Check_path(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, type=str, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        if type is not str:
+            raise ValueError("type must be an str")
+        super(Check_path, self).__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        if os.path.isdir(values):
+            setattr(namespace, self.dest, os.path.dirname(values)+os.sep)
+
 parser = argparse.ArgumentParser(description='Process some Fortigate configuration files.')
+parser.add_argument('--dir', dest='dir', action=Check_path,
+    default='./', help='searching folder (default: ./)')
 parser.add_argument('--files', dest='files', action='store',
     default='*.conf', help='type off file search (default: *.conf)')
-parser.add_argument('--dir', dest='dir', action='store',
-    default='./', help='searching folder (default: ./)')
-parser.add_argument('--json', dest='JSON', action='store_true',
+parser.add_argument('-json', dest='JSON', action='store_true',
     default=False, help='write result in a JSON file (default: False)')
-parser.add_argument('--xlsx', dest='XLSX', action='store_true',
-    default=False, help='write result in a XLSX file (default: False)')
+parser.add_argument('-xlsx', dest='XLSX', action='store_true',
+    default=False, required='-webfilter' in sys.argv[1:],
+    help='write result in a XLSX file (default: False)')
+parser.add_argument('-webfilter', dest='webfilter', action='store_true',
+    default=False, required='--profile' in sys.argv[1:],
+    help='remplace webfilter category in xlsx file (require xlsx, search "webfilter_profiles.json", default: False)')
+parser.add_argument('--profile', dest='profile', action='store',
+    default=LOCAL_DIR+os.sep+'webfilter_profiles.json', 
+    help='change file for webfilter category (default: webfilter_profiles.json)')
 if __name__ == '__main__':
     args = parser.parse_args(sys.argv[1:])
 
-import shlex
-import json
+import shlex, json
 
 # Openpyxl (c) 2017
 # Author : Eric Gazoni, Charlie Clark
@@ -81,6 +101,15 @@ class Parser(dict):
     def Parsed_to_xls(self, key, name, save = False):
         self.__workbook = Parsed_to_xls(self.__prepared, key, name, save)
         return self.__workbook
+
+class Webfilter_category:
+    def __init__(self, id, name, group, version=None):
+        self.id = id
+        self.group = group
+        self.name = name
+        self.version = version
+    def __repr__(self):
+        return str('id = %r, name = %r, group = %r' % (self.id, self.name, self.group) + ('',', version = %r' % self.version)[self.version != None])
 
 def parse(config,end=('end','next'),res={},titles=('set','unset')):
     """ Function that take Fortigate backup configuration file and return
@@ -215,12 +244,12 @@ def parse(config,end=('end','next'),res={},titles=('set','unset')):
         if _old_index == index or title == '':
             # On sort de la boucle si le bloc n'avance plus, pour éviter la boucle
             # infini
-            for key in res.keys():
+            for key in res:
                 # on retire des titres qui aurait pu être rajoutés
                 for e in end+('',):
-                    if e in res.keys() and res == {e:[]}:
+                    if e in res and res == {e:[]}:
                         res = e
-                    elif e in res.keys() and res[e] in [{}]:
+                    elif e in res and res[e] in [{}]:
                         res.pop(e)
         elif working == '':
             # On ajout les variables avant de sortir
@@ -234,9 +263,9 @@ def parse(config,end=('end','next'),res={},titles=('set','unset')):
     for key in res.keys():
         # On retire des titres qui aurait pu être rajoutés
         for e in end+('',):
-            if e in res.keys() and res == {e:[]}:
+            if e in res and res == {e:[]}:
                 res = e
-            elif e in res.keys() and res[e] in [{}]:
+            elif e in res and res[e] in [{}]:
                 res.pop(e)
     return res
 
@@ -286,7 +315,7 @@ def prepare(dico):
         # On va trier pour chacunes des valeurs du dictionnaire
         #
         
-        for key in dico.keys():
+        for key in dico:
             _key = shlex.split(key)
             if _key[0] in ['config','edit']: 
                 # Si c'est un niveau des configurations plus élevées
@@ -313,7 +342,7 @@ def prepare(dico):
         # On déclence une récurtion
         #
         
-        conf = {key:prepare(keys['conf'][key]) for key in keys['conf'].keys()}
+        conf = {key:prepare(keys['conf'][key]) for key in keys['conf']}
         keys.update({'conf':conf})
         
         #
@@ -327,7 +356,7 @@ def prepare(dico):
         return keys
     else:
         return None
-    
+
 def build_xls(dico):
     """ Function that take Fortigate backup configuration file parsed 
     and prepared in a JSON/dict and return a tuple of two lists :
@@ -354,7 +383,6 @@ def build_xls(dico):
         ...     item
         ['Names']
         ['config system interface']
-        ['config system interface']
         [None, 'Names', 'ip', 'alias', 'allowaccess', 'type', 'snmp-index', 
         'vdom']
         [None, 'edit "port 1"', '192.168.1.254\n255.255.255.0', 
@@ -368,7 +396,7 @@ def build_xls(dico):
     #
     
     if type(dico) is dict:
-        if set([key in ['conf','opt'] for key in dico.keys()]) == set([True]):
+        if set([key in ['conf','opt'] for key in dico]) == set([True]):
             rep = []
             conf = []
             if dico.has_key('opt') and type(dico['opt']) is dict:
@@ -380,7 +408,7 @@ def build_xls(dico):
                 rep += [dico['opt'][None]]# On donne le titre des futurs
                 # colonnes
                 index = len(rep)
-                _ = dico['opt'].pop(None)
+                dico['opt'] = {key:dico['opt'][key] for key in dico['opt'] if key}
                 rep += [[]]
                 
                 #
@@ -403,7 +431,7 @@ def build_xls(dico):
                 
                 __rep = {}
                 __conf = {}
-                for key in dico['conf'].keys():
+                for key in dico['conf']:
                     
                     #
                     # On entre en récurtion pour chaque configuration
@@ -421,36 +449,37 @@ def build_xls(dico):
                 #
                 
                 titles = set()
-                for _index in __rep.keys():
+                for _index in __rep:
                     if __rep[_index] in [None,[]]:
                         continue
                     titles.update(__rep[_index][0])
                 
                 titles = list(titles)
                 conf += [['Names']+titles]
-                for key in dico['conf'].keys():
-                    index = len(conf)
-                    conf += [[key]]
-                    for _key in titles:
-                        if __rep[key] in [None,[]]:
-                            conf[index] += [None]
-                        else:
-                            if _key in __rep[key][0]:
-                                conf[index] += [__rep[key][1]\
-                                    [__rep[key][0].index(_key)]]
-                            else:
+                if len(titles):
+                    for key in dico['conf']:
+                        index = len(conf)
+                        conf += [[key]]
+                        for _key in titles:
+                            if __rep[key] in [None,[]]:
                                 conf[index] += [None]
+                            else:
+                                if _key in __rep[key][0]:
+                                    conf[index] += [__rep[key][1]\
+                                        [__rep[key][0].index(_key)]]
+                                else:
+                                    conf[index] += [None]
                 
                 #
                 # On regarde si on a un configuration de niveau N+2
                 #
                 
-                if __conf == {key:[] for key in dico['conf'].keys()}:
+                if __conf == {key:[] for key in dico['conf']}:
                     # Ici toutes les configuration de niveau N+1 ne 
                     # contenait que des données
                     pass
                 else:
-                    for key in __conf.keys():
+                    for key in __conf:
                         # Pour chaque configuration de niveau N+2,
                         # on prend l'ensemble de ces données que l'on
                         # décale d'une colonne après avoir rajouté un
@@ -467,11 +496,9 @@ def build_xls(dico):
     else:
         return None, None
 
-def Parsed_to_xls(dico, key, name, save = False):
+def Parsed_to_xls(dico, key, name, save = False, profile = None):
     """ Function that take Fortigate backup configuration file parsed 
-    and prepared in a JSON/dict and return a tuple of two lists :
-        - rep : All data at current level
-        - conf : All data with a higher level
+    and prepared in a JSON/dict and an Openpyxl Workbook
     
     Here is an example:
         >>> config = 'config system interface\\n'+\\
@@ -485,34 +512,52 @@ def Parsed_to_xls(dico, key, name, save = False):
         ... '    next\\n'+\\
         ... 'end'
         >>> res = parse(config)
-        >>> rem = prepare(res)
-        >>> rep , conf = build_xls(rem)
-        >>> rep
-        []
-        >>> for item in conf:
-        ...     item
-        ['Names']
-        ['config system interface']
-        ['config system interface']
-        [None, 'Names', 'ip', 'alias', 'allowaccess', 'type', 'snmp-index', 
-        'vdom']
-        [None, 'edit "port 1"', '192.168.1.254\n255.255.255.0', 
-        'Internet access', 'ping', 'physical', '1', 'root']
+        >>> key = ['firewall','vpn','proxy','webfilter',
+        'router','ips','system','application','antivirus']
+        >>> name = 'test.xlsx'
+        >>> wb = Parsed_to_xls(res, key, name, save = False, profile = None)
+        >>> [(cell,wb['system interface'].__dict__['_cells'][cell].value) 
+        ... for cell in wb['system interface'].__dict__['_cells']]
+        [((1, 2), u'ip'), ((2, 7), u'root'), ((1, 3), u'alias'), 
+        ((2, 2), u'192.168.1.254\n255.255.255.0'), 
+        ((1, 4), u'allowaccess'), ((2, 4), u'ping'), ((1, 5), u'type'),
+        ((2, 6), 1), ((1, 6), u'snmp-index'), ((2, 1), u'edit "port 1"'),
+        ((1, 7), u'vdom'), ((2, 3), u'Internet access'), 
+        ((2, 5), u'physical'), ((1, 1), u'Names')]
     
-    return a Workbook openpyxl or None
+    return a Workbook openpyxl or None, if an input is not valid
     """
     
     #
     # On réduit le dictionnaire à la ou les clés prédéfinit
     #
     
-    if type(dico) is dict and type(key) in [str,unicode]:
-        keys = sorted([_key for _key in dico.keys() if key in _key])
-    elif type(dico) is dict and type(key) is list:
-        keys = sorted([_key for _key in dico.keys() if True in [__key in _key for __key in key]])
+    if type(dico) is dict:
+        if type(key) in [str,unicode]:
+            keys = sorted([_key for _key in dico if key in _key])
+        elif type(key) is list:
+            keys = sorted([_key for _key in dico if True in [__key in _key for __key in key]])
+        else:
+            pass
+            #return None
+        if type(profile) is dict:
+            if set([type(profile[group]) for group in profile]) == set([dict]):
+                _profile = {}
+                for group in profile:
+                    for category in profile[group]: 
+                        _profile.update({category:
+                            Webfilter_category(category, profile[group][category], 
+                            group)})
+            else:
+                pass
+                #return None
+        elif profile is None:
+            pass
+        else:
+            return None
     else:
         return None
-    
+        
     #
     # On prépare le Workbook
     # 
@@ -523,8 +568,27 @@ def Parsed_to_xls(dico, key, name, save = False):
     for _key in keys: # Pour chacune des clés retenues
         __key = _key.split(' ',1)[1]
         wb.create_sheet(__key) # On crée une feuille de travail
-        rep = prepare(dico[_key]) # On prepare le dictionnaire 
-        rep, conf = build_xls(rep) # On recolte les données 
+        rem = prepare(dico[_key]) # On prepare le dictionnaire 
+        if profile and __key == 'webfilter profile': # Le cas échéant on 
+            # rajoute les profiles webfilter
+            for conf in rem['conf']:
+                filters = rem['conf'][conf]['conf']['config ftgd-wf']['conf']['config filters']['conf']
+                for filter in filters:
+                    if filters[filter]:
+                        if filters[filter]['opt'].has_key('category'):
+                            filters[filter]['opt'][None] += ['category name','category group']
+                            __profile = _profile.get(filters[filter]['opt']['category'],None)
+                            if hasattr(__profile,'name') and hasattr(__profile,'group'):
+                                filters[filter]['opt'].update({'category name':__profile.name,
+                                    'category group':__profile.group})
+                            else:
+                                filters[filter]['opt'].update({'category name':'unknow',
+                                    'category group':'unknow'})
+                        rem['conf'][conf]['conf']['config ftgd-wf']['conf']['config filters']['conf'][filter]['opt'] = \
+                            filters[filter]['opt']
+                    
+                    
+        rep, conf = build_xls(rem) # On recolte les données 
         # correctement formatées
         if rep == None:
             continue 
@@ -582,7 +646,7 @@ def Parsed_to_xls(dico, key, name, save = False):
     accueil['B5'].value = 'Links'
     for sheet in wb.sheetnames[1:]:
         accueil['B'+str(5+wb.sheetnames.index(sheet))].value = sheet
-        accueil['B'+str(5+wb.sheetnames.index(sheet))].hyperlink = name +\
+        accueil['B'+str(5+wb.sheetnames.index(sheet))].hyperlink = os.path.split(name)[1] +\
             '#'+(sheet,"'"+sheet+"'")[' ' in sheet]+'!A1'
     
     #
@@ -626,16 +690,86 @@ def Parsed_to_xls(dico, key, name, save = False):
                 pass
             else:
                 raise TypeError, e
+    
     if save: # On enregistre le fichier au besoin
         wb.save(name)
     return wb
 
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+def webfilter_version(profiles, version):
+    versions = [v for v in profiles if isfloat(v) and v[0].isdigit()]
+    range_versions = [v for v in profiles if not v in versions]
+    if version in versions:
+        return profiles[version], version
+    else:
+        versions += list(set([v[1:] for v in profiles if isfloat(v) and not v[0].isdigit()]))
+        _range_versions = sorted([float(_v) for _v in versions]+[0.0])
+        for range_version in range_versions:
+            _min, _max = [], []
+            if range_version.startswith('+'):
+                __version = float(range_version)
+                for __v in _range_versions:
+                    if __v > __version:
+                        _max += [__v]
+                _min, _max = __version,min(_max)
+                if _min <= float(version) < _max:
+                    return profiles[range_version], range_version
+            elif range_version.startswith('-'):
+                __version = -float(range_version)
+                for __v in _range_versions[::-1]:
+                    if __v < __version:
+                        _min += [__v]
+                _min, _max = max(_min),__version
+                if _min <= float(version) < _max:
+                    return profiles[range_version], range_version
+            else:
+                raise Exception, 'Invalid Format for version (%s) is unsupported ' % range_version[0]
+    return None,None
+
 def main():
-    import os
     import re
     files = os.listdir(args.dir) # On liste l'ensemble des fichiers du répertoire choisit
     p = re.compile('('+args.files.replace('.','[.]').replace('*','.*?')+')$')
-    files = [p.findall(file)[0] for file in files if p.findall(file) != []] 
+    files = [p.findall(file)[0] for file in files if p.findall(file) != []]
+    if args.webfilter:
+        print 'Searching for profiles in',os.path.basename(args.profile),':',
+        try:
+            fp = open(args.profile,'r')
+            profiles = json.load(fp)
+            fp.close()
+            print 'done'
+        except Exception, e:
+            print 'An error occur when profile has been load'
+            _continue = None
+            if args.profile == LOCAL_DIR+os.sep+'webfilter_profiles.json':
+                print 'Default file can\'t be open !' 
+            while not _continue in ['y','n']:
+                _continue = raw_input('would you continue without webfilter ? (y/n) ')
+            if _continue == 'y':
+                args.webfilter = False
+            elif args.profile == LOCAL_DIR+os.sep+'webfilter_profiles.json':
+                print 'Program stop !'
+                raise e
+            else:
+                _continue = None
+                while not _continue in ['y','n']:
+                    _continue = raw_input('would you continue with default profile ? (y/n) ')
+                if _continue == 'y':
+                    fp = open(LOCAL_DIR+os.sep+'webfilter_profiles.json','r')
+                    profiles = json.load(fp)
+                    fp.close()
+                    print 'done'
+                else:
+                    print 'Program stop !'
+                    raise e
+        print
+    
     # On cherche tous les fichiers qui vont correspondre a critère définit
     for file in files: # Pour chaque fichier
         print 'Processing :',file
@@ -645,7 +779,7 @@ def main():
         #
         
         print '\tReading :',
-        f = open('./'+file)
+        f = open(args.dir+file,'r')
         config = f.read()
         f.close()
         print 'done'
@@ -656,6 +790,7 @@ def main():
                 headers.append(conf)
             else: 
                 break
+        
         index = sum([len(header) for header in headers])+len(headers)
         print 'done'
         
@@ -673,10 +808,30 @@ def main():
             # Creation des fichiers xlsx
             #
             
+            #
+            # Si on active le remplacement des numéro de webfilter
+            #
+            profile, version = None, None
+            if args.webfilter:
+                print '\tSearching for webfilter profiles :',
+                try:
+                    _version = [header for header in headers if header.startswith('#config-version=')][0].split('-')[2]
+                    version = str(int(version.split('.')[0]))+'.'+str(int(_version.split('.')[1]))
+                except:
+                    pass
+                
+                if version:
+                    profile, version = webfilter_version(profiles,version)
+                    if profile:
+                        print 'done (a profile has been found for %s)' % version
+                    else:
+                        print 'done (None profile found !)'
+                else:
+                    print 'Error during version analysis, webfilter profile aborted for this file !'
             print '\tFormat XLS :',
             wb = Parsed_to_xls(res, ['firewall','vpn','proxy','webfilter',
-                'rooter','ips','system','application'], 
-                file[::-1].split('.',1)[1][::-1]+'.xlsx', save = True)
+                'router','ips','system','application','antivirus'], 
+                args.dir+os.sep+file[::-1].split('.',1)[1][::-1]+'.xlsx', save = True, profile = profile)
             print 'done'
         
         if args.JSON:
@@ -688,7 +843,7 @@ def main():
             res.update({'headers':headers})
             print '\tFormat JSON :',
             str_ = json.dumps(res,indent=4, sort_keys=True, ensure_ascii=False)
-            with open(file[::-1].split('.',1)[1][::-1]+'.json', 'w') as outfile:
+            with open(args.dir+os.sep+file[::-1].split('.',1)[1][::-1]+'.json', 'w') as outfile:
                 outfile.write(str_)
             print 'done'
         
