@@ -7,8 +7,8 @@
 # Created By        : Florian MAUFRAIS
 # Contact           : florian.maufrais@nxosecurity.com
 # Creation Date     : april  13th, 2015
-# Version           : 1.2.3
-# Last Change       : June 16th, 2017 at 9:32
+# Version           : 1.2.4
+# Last Change       : June 20th, 2017 at 10:42
 # Last Changed By   : Florian MAUFRAIS
 # Purpose           : This programm could parse backup files of a
 #                     Fortigate appliance to a JSON/dict and XLSX structure
@@ -16,7 +16,7 @@
 #
 ################################################################################"""
 
-__version__ = (1,2,3)
+__version__ = (1,2,4)
 __all__ = ['parse','Parser','Parsed_to_xls','prepare','build_xls']
 
 ################################################################################
@@ -40,19 +40,26 @@ class Check_path(argparse.Action):
 parser = argparse.ArgumentParser(description='Process some Fortigate configuration files.')
 parser.add_argument('--dir', dest='dir', action=Check_path,
     default='./', help='searching folder (default: ./)')
-parser.add_argument('--files', dest='files', action='store',
+parser.add_argument('--files', dest='files', action='store', nargs='+',
     default='*.conf', help='type off file search (default: *.conf)')
 parser.add_argument('-json', dest='JSON', action='store_true',
     default=False, help='write result in a JSON file (default: False)')
 parser.add_argument('-xlsx', dest='XLSX', action='store_true',
-    default=False, required='-webfilter' in sys.argv[1:],
+    default=False, required='-webfilter' in sys.argv[1:] or 
+    '--keys' in sys.argv[1:],
     help='write result in a XLSX file (default: False)')
 parser.add_argument('-webfilter', dest='webfilter', action='store_true',
     default=False, required='--profile' in sys.argv[1:],
-    help='remplace webfilter category in xlsx file (require xlsx, search "webfilter_profiles.json", default: False)')
+    help='remplace webfilter category in xlsx file (require xlsx, search '+\
+    '"webfilter_profiles.json", default: False)')
 parser.add_argument('--profile', dest='profile', action='store',
     default=LOCAL_DIR+os.sep+'webfilter_profiles.json', 
     help='change file for webfilter category (default: webfilter_profiles.json)')
+parser.add_argument('--keys',dest='keys', action='store', nargs='+',
+    default=['firewall','vpn','proxy','webfilter','router','ips','system',
+    'application','antivirus'], help='Change default keys use to select '+\
+    'main config descriptor (default list : firewall, vpn, proxy, webfilter, '+\
+    'router, ips, system, application, antivirus)')
 if __name__ == '__main__':
     args = parser.parse_args(sys.argv[1:])
 
@@ -735,30 +742,41 @@ def webfilter_version(profiles, version):
 def main():
     import re
     files = os.listdir(args.dir) # On liste l'ensemble des fichiers du répertoire choisit
-    p = re.compile('('+args.files.replace('.','[.]').replace('*','.*?')+')$')
-    files = [p.findall(file)[0] for file in files if p.findall(file) != []]
-    if args.webfilter:
+    _files = []
+    for file in args.files: # On filtre pour l'ensemble des arguments files fournit en CLI
+        p = re.compile('('+file.replace('.','[.]').replace('*','.*?')+')$')
+        _files += [p.findall(file)[0] for file in files if p.findall(file) != []]
+    
+    files = _files
+    if args.webfilter: 
+        # On effectue un recherche des webfilter profile 
         print 'Searching for profiles in',os.path.basename(args.profile),':',
-        try:
+        try: # On teste tout d'abord le fichier fournit en option
             fp = open(args.profile,'r')
             profiles = json.load(fp)
             fp.close()
             print 'done'
-        except Exception, e:
+        except Exception, e: # En cas d'erreur
             print 'An error occur when profile has been load'
             _continue = None
             if args.profile == LOCAL_DIR+os.sep+'webfilter_profiles.json':
+                # Si le fichier est celui de la librairie 
                 print 'Default file can\'t be open !' 
             while not _continue in ['y','n']:
+                # On demande à l'utilisateur s'il souhaite continuer sans l'ajout
+                # des noms et groupes de webfilter
                 _continue = raw_input('would you continue without webfilter ? (y/n) ')
             if _continue == 'y':
+                # On désactive l'option
                 args.webfilter = False
             elif args.profile == LOCAL_DIR+os.sep+'webfilter_profiles.json':
+                # Dans le cas ou l'erreur a eu lieu sur le fichier de la librairie 
                 print 'Program stop !'
                 raise e
             else:
                 _continue = None
                 while not _continue in ['y','n']:
+                    # On propose d'utiliser le fichier de la librairie
                     _continue = raw_input('would you continue with default profile ? (y/n) ')
                 if _continue == 'y':
                     fp = open(LOCAL_DIR+os.sep+'webfilter_profiles.json','r')
@@ -815,12 +833,15 @@ def main():
             if args.webfilter:
                 print '\tSearching for webfilter profiles :',
                 try:
+                    # On recherche la version des les headers du fichiers de conf
                     _version = [header for header in headers if header.startswith('#config-version=')][0].split('-')[2]
                     version = str(int(version.split('.')[0]))+'.'+str(int(_version.split('.')[1]))
                 except:
                     pass
                 
                 if version:
+                    # on recherche parmi les profiles identifiées, celui qui correspond
+                    # à la version présente
                     profile, version = webfilter_version(profiles,version)
                     if profile:
                         print 'done (a profile has been found for %s)' % version
@@ -829,9 +850,8 @@ def main():
                 else:
                     print 'Error during version analysis, webfilter profile aborted for this file !'
             print '\tFormat XLS :',
-            wb = Parsed_to_xls(res, ['firewall','vpn','proxy','webfilter',
-                'router','ips','system','application','antivirus'], 
-                args.dir+os.sep+file[::-1].split('.',1)[1][::-1]+'.xlsx', save = True, profile = profile)
+            wb = Parsed_to_xls(res, args.keys, args.dir+os.sep+file[::-1].split('.',1)[1][::-1]+'.xlsx', 
+                save = True, profile = profile)
             print 'done'
         
         if args.JSON:
