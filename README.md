@@ -25,6 +25,7 @@ $ python parser_forti.py --files test.conf -json -xlsx
         Format XLS : done
         Format JSON : done
 ```
+
 Openpyxl can't create a sheet with more than 31 characters, so `firewall profile-protocol-options` (33) don't pass !
 
 XLSX file return an error when you open it, `Microsoft Excel` can fix it but you have to change links with the new names. `firewall profile-protocol-options` become `firewall profile-protocol-optio`, save and that's it !
