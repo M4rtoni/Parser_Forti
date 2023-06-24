@@ -692,7 +692,7 @@ def Parsed_to_xls(dico, key, name, save = False, profile = None):
             for i, column_width in enumerate(column_widths):
                 # On fixe la largeur des colonne pour les valeurs données
                 wb[str(sheet)].column_dimensions[get_column_letter(i+1)].width = column_width
-        except TypeError, e:
+        except TypeError as e:
             if e.message == "iter() returned non-iterator of type 'tuple'":
                 pass
             else:
