@@ -16,7 +16,7 @@ sudo python setup.py install
 ```
 ## Test
 ```bash
-$ python parser_forti.py --files test.conf --json --xlsx
+$ python parser_forti.py --files test.conf -json -xlsx
         Reading : done
         Header : done
         Parsing : done
