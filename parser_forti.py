@@ -12,7 +12,8 @@
 # Last Changed By   : Florian MAUFRAIS
 # Purpose           : This programm could parse backup files of a
 #                     Fortigate appliance to a JSON/dict and XLSX structure
-#
+# 
+# How to use        : python .\parser_forti.py --files 1.conf -json
 #
 ################################################################################"""
 
