@@ -12,7 +12,8 @@
 # Last Changed By   : Florian MAUFRAIS
 # Purpose           : This programm could parse backup files of a
 #                     Fortigate appliance to a JSON/dict and XLSX structure
-#
+# 
+# How to use        : python .\parser_forti.py --files 1.conf -json
 #
 ################################################################################"""
 
@@ -540,7 +541,7 @@ def Parsed_to_xls(dico, key, name, save = False, profile = None):
     #
     
     if type(dico) is dict:
-        if type(key) in [str,unicode]:
+        if type(key) is str:
             keys = sorted([_key for _key in dico if key in _key])
         elif type(key) is list:
             keys = sorted([_key for _key in dico if True in [__key in _key for __key in key]])
@@ -668,7 +669,7 @@ def Parsed_to_xls(dico, key, name, save = False, profile = None):
                     if cell.value != None: # si elle n'est pas vide
                         if len(column_widths) > i: # et que ce n'est pas une
                             # cellule de la première ligne
-                            if type(cell.value) in [str,unicode]:
+                            if type(cell.value) is str:
                                 if '\n' in str(cell.value.encode('UTF-8')):
                                     # Si c'est une chaîne de caractère
                                     for value in cell.value.encode('UTF-8').split('\n'):
@@ -692,11 +693,11 @@ def Parsed_to_xls(dico, key, name, save = False, profile = None):
             for i, column_width in enumerate(column_widths):
                 # On fixe la largeur des colonne pour les valeurs données
                 wb[str(sheet)].column_dimensions[get_column_letter(i+1)].width = column_width
-        except TypeError, e:
+        except TypeError as e:
             if e.message == "iter() returned non-iterator of type 'tuple'":
                 pass
             else:
-                raise TypeError, e
+                raise TypeError and e
     
     if save: # On enregistre le fichier au besoin
         wb.save(name)
@@ -736,7 +737,7 @@ def webfilter_version(profiles, version):
                 if _min <= float(version) < _max:
                     return profiles[range_version], range_version
             else:
-                raise Exception, 'Invalid Format for version (%s) is unsupported ' % range_version[0]
+                raise Exception ('Invalid Format for version (%s) is unsupported ' % range_version[0])
     return None,None
 
 def main():
@@ -750,59 +751,59 @@ def main():
     files = _files
     if args.webfilter: 
         # On effectue un recherche des webfilter profile 
-        print 'Searching for profiles in',os.path.basename(args.profile),':',
+        print ("Searching for profiles in"),os.path.basename(args.profile),':',
         try: # On teste tout d'abord le fichier fournit en option
             fp = open(args.profile,'r')
             profiles = json.load(fp)
             fp.close()
-            print 'done'
-        except Exception, e: # En cas d'erreur
-            print 'An error occur when profile has been load'
+            print ('done')
+        except Exception as e: # En cas d'erreur
+            print ('An error occur when profile has been load')
             _continue = None
             if args.profile == LOCAL_DIR+os.sep+'webfilter_profiles.json':
                 # Si le fichier est celui de la librairie 
-                print 'Default file can\'t be open !' 
+                print ('Default file can\'t be open !') 
             while not _continue in ['y','n']:
                 # On demande à l'utilisateur s'il souhaite continuer sans l'ajout
                 # des noms et groupes de webfilter
-                _continue = raw_input('would you continue without webfilter ? (y/n) ')
+                _continue = input('would you continue without webfilter ? (y/n) ')
             if _continue == 'y':
                 # On désactive l'option
                 args.webfilter = False
             elif args.profile == LOCAL_DIR+os.sep+'webfilter_profiles.json':
                 # Dans le cas ou l'erreur a eu lieu sur le fichier de la librairie 
-                print 'Program stop !'
+                print ('Program stop !')
                 raise e
             else:
                 _continue = None
                 while not _continue in ['y','n']:
                     # On propose d'utiliser le fichier de la librairie
-                    _continue = raw_input('would you continue with default profile ? (y/n) ')
+                    _continue = input('would you continue with default profile ? (y/n) ')
                 if _continue == 'y':
                     fp = open(LOCAL_DIR+os.sep+'webfilter_profiles.json','r')
                     profiles = json.load(fp)
                     fp.close()
-                    print 'done'
+                    print ('done')
                 else:
-                    print 'Program stop !'
+                    print ('Program stop !')
                     raise e
         print
     
     # On cherche tous les fichiers qui vont correspondre a critère définit
     for file in files: # Pour chaque fichier
-        print 'Processing :',file
+        print ('Processing :'),file
         
         #
         # Lecture du fichier
         #
         
-        print '\tReading :',
+        print ('\tReading :'),
         f = open(args.dir+file,'r')
         config = f.read()
         f.close()
-        print 'done'
+        print ('done')
         headers = []# Identification des headers
-        print '\tHeader :',
+        print ('\tHeader :'),
         for conf in config.split('\n'):
             if conf.startswith('#'):
                 headers.append(conf)
@@ -810,15 +811,15 @@ def main():
                 break
         
         index = sum([len(header) for header in headers])+len(headers)
-        print 'done'
+        print ('done')
         
         #
         # Parsing de la conf
         #
         
-        print '\tParsing :',
+        print ('\tParsing :'),
         res = parse(config[index:],res = {})
-        print 'done'
+        print ('done')
         
         if args.XLSX:
             
@@ -831,7 +832,7 @@ def main():
             #
             profile, version = None, None
             if args.webfilter:
-                print '\tSearching for webfilter profiles :',
+                print ('\tSearching for webfilter profiles :'),
                 try:
                     # On recherche la version des les headers du fichiers de conf
                     _version = [header for header in headers if header.startswith('#config-version=')][0].split('-')[2]
@@ -844,15 +845,15 @@ def main():
                     # à la version présente
                     profile, version = webfilter_version(profiles,version)
                     if profile:
-                        print 'done (a profile has been found for %s)' % version
+                        print ('done (a profile has been found for %s)') % version
                     else:
-                        print 'done (None profile found !)'
+                        print ('done (None profile found !)')
                 else:
-                    print 'Error during version analysis, webfilter profile aborted for this file !'
-            print '\tFormat XLS :',
+                    print ('Error during version analysis, webfilter profile aborted for this file !')
+            print ('\tFormat XLS :'),
             wb = Parsed_to_xls(res, args.keys, args.dir+os.sep+file[::-1].split('.',1)[1][::-1]+'.xlsx', 
                 save = True, profile = profile)
-            print 'done'
+            print ('done')
         
         if args.JSON:
             
@@ -861,11 +862,11 @@ def main():
             #
             
             res.update({'headers':headers})
-            print '\tFormat JSON :',
+            print ('\tFormat JSON :'),
             str_ = json.dumps(res,indent=4, sort_keys=True, ensure_ascii=False)
             with open(args.dir+os.sep+file[::-1].split('.',1)[1][::-1]+'.json', 'w') as outfile:
                 outfile.write(str_)
-            print 'done'
+            print ('done')
         
         print
 
